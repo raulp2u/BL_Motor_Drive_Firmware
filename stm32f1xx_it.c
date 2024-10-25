@@ -55,14 +55,10 @@ uint32_t contador=0;
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern TIM_HandleTypeDef htim2;
+
 /* USER CODE BEGIN EV */
-//extern uint32_t FaseA[];
-//extern uint32_t FaseB[];
-//extern uint32_t FaseC[];
-extern uint32_t VetorSeno[];
-extern uint32_t flagA,flagB,flagC;
-extern uint32_t velocidade;
+extern TIM_HandleTypeDef htim1;
+
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -202,47 +198,6 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f1xx.s).                    */
 /******************************************************************************/
-
-/**
-  * @brief This function handles TIM2 global interrupt.
-  */
-void TIM2_IRQHandler(void)
-{
-  /* USER CODE BEGIN TIM2_IRQn 0 */
-
-  /* USER CODE END TIM2_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim2);
-  /* USER CODE BEGIN TIM2_IRQn 1 */
-/*
-
- contador++;
-if(contador>velocidade)
-{
-	TIM1->CCR1=VetorSeno[flagA];
-	TIM1->CCR2=VetorSeno[flagB];
-	TIM1->CCR3=VetorSeno[flagC];
-
-	flagA++;
-	flagB++;
-	flagC++;
-	if (flagA>=TAMANHO_VETOR)
-	{
-		flagA=0;
-	}
-	else if (flagB>=TAMANHO_VETOR)
-	{
-		flagB=0;
-	}
-	else if (flagC>=TAMANHO_VETOR)
-	{
-		flagC=0;
-	}
-contador=0;
-}
-*/
-
-  /* USER CODE END TIM2_IRQn 1 */
-}
 
 /* USER CODE BEGIN 1 */
 
