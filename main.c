@@ -166,7 +166,7 @@ int main(void)
 	 //de acordo com a leitura do Hall
 	  // Verifica a variável 'ok'
 	          if (ok == 0) {
-	              char* aguardando_msg = "Programa Aguardando Atualização das variáveis\n";
+	              char* aguardando_msg = "Programa aguardando atualização de variáveis...\n";
 	              HAL_UART_Transmit(&huart2, (uint8_t*)aguardando_msg, strlen(aguardando_msg), HAL_MAX_DELAY);
 
 	              // Reseta o SysTick e t_us ao entrar no estado de espera
