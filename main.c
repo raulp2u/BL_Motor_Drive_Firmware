@@ -18,10 +18,11 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,18 +54,34 @@ TIM_HandleTypeDef htim1;
 uint32_t SetorLido=0;
 int ValorMaximoTimer= 3600;
 unsigned int DutyCycle=3000;
-char* mensagem = "Olá Mundo\n";
-volatile uint32_t t_us = 0;  // Variável que recebe o tempo decorrido em microssegundos
+//char mensagem[32]="";
+
 volatile int ok = 1;  // Controle do fluxo
 volatile int hallint = 0;  // Valor do hall sensor
 volatile int SetorAcionado = 0;  // Setor acionado com base no valor de hallint
-volatile uint32_t tempo_entre_setores = 0;  // Tempo entre cada troca de setor
+
+/*volatile uint32_t tempo_entre_setores = 0;  // Tempo entre cada troca de setor
 volatile int setores_acionados = 0b000000;  // Controle dos setores acionados (flags para cada setor)
 volatile uint32_t soma_tempo_trocas = 0;  // Soma do tempo entre as trocas de setores
 volatile int contador_trocas = 0;  // Contador de trocas de setores
+float tempo_medio=0;
+*/
 
+
+uint32_t SetorAnterior=0;
 int hall[3];
 int ValorContador=1800;
+uint32_t start_time=0;
+
+
+uint32_t t_ms = 0;  // Variável que recebe o tempo decorrido em milisegundos
+uint32_t tempo_t2=0;
+uint32_t tempo_t1 =0;
+uint32_t tempo_entre_setores = 0;
+uint32_t tempo_total_entre_setores =0;
+uint32_t tempo_medio=0;
+char 	mensagemVelocidade[64];
+
 
 /* USER CODE END PV */
 
@@ -73,7 +90,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
-static void MX_USART2_UART_Init(void);
+//static void MX_USART2_UART_Init(void);
 void delay_ms(uint32_t ms);
 void SysTick_Handler(void);
 void reset_systick(void);
@@ -114,9 +131,10 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM1_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
-  // Configuração do SysTick para interromper a cada 1 microsegundo
-  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq() / 72);
+
+
 
 #ifdef ACIONAMENTO_MALHA_ABERTA
    	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
@@ -136,95 +154,183 @@ int main(void)
 #endif
 
    HAL_TIM_Base_Start(&htim1);
-  /* USER CODE END 2 */
+
+   // Configuração do SysTick para interromper a cada 1 microsegundo
+   HAL_SYSTICK_Config(72000); //HAL_RCC_GetHCLKFreq()
+	// Reseta o SysTick e t_us antes de iniciar as mensagens
+	 reset_systick();
+
+	char mensagem[]="Ola Mundo";
+	CDC_Transmit_FS(mensagem,strlen(mensagem));
+
+
+	 // Enviar mensagem "Olá Mundo" três vezes, uma vez por segundo usando a contagem por t_us
+	 for (int i = 0; i < 3; i++) {
+		 //HAL_UART_Transmit(&huart2, (uint8_t*)mensagem, strlen(mensagem), HAL_MAX_DELAY);
+		 char mensagem[]="Ola Mundo \n\r";
+		 CDC_Transmit_FS(mensagem,strlen(mensagem));
+		 start_time = t_ms;
+		 while ((t_ms - start_time) < 2000);  // Atraso de 2 segundo
+		 //HAL_Delay(1000);
+	 }
+
+   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  //Loop Infinito
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
-	  // Reseta o SysTick e t_us antes de iniciar as mensagens
-	         reset_systick();
 
-	         // Enviar mensagem "Olá Mundo" três vezes, uma vez por segundo usando a contagem por t_us
-	         for (int i = 0; i < 3; i++) {
-	             HAL_UART_Transmit(&huart2, (uint8_t*)mensagem, strlen(mensagem), HAL_MAX_DELAY);
-	             uint32_t start_time = t_us;
-	             while ((t_us - start_time) < 1000000);  // Atraso de 1 segundo
-	         }
-
-	  //Faz a leitura dos sensores Hall
-	  hall[0]= HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_1);
-	  hall[1]= HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10)*10;
-	  hall[2]= HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_11)*100;
-	  hallint=  hall[0]+hall[1]+hall[2];//Monta o código dos sensores Hall
 
 	 //Escolhe o setor que vai acionar
 	 //de acordo com a leitura do Hall
 	  // Verifica a variável 'ok'
 	          if (ok == 0) {
-	              char* aguardando_msg = "Programa aguardando atualização de variáveis...\n";
-	              HAL_UART_Transmit(&huart2, (uint8_t*)aguardando_msg, strlen(aguardando_msg), HAL_MAX_DELAY);
+	              //char* aguardando_msg = ";
+	              //HAL_UART_Transmit(&huart2, (uint8_t*)aguardando_msg, strlen(aguardando_msg), HAL_MAX_DELAY);
+	        	  char mensagem[]="Aguardando variaveis \n\r";
+				  CDC_Transmit_FS(mensagem,strlen(mensagem));
 
 	              // Reseta o SysTick e t_us ao entrar no estado de espera
 	              reset_systick();
+	              /*
 	              setores_acionados = 0b000000;  // Reinicia controle de setores
 	              soma_tempo_trocas = 0;  // Reseta a soma do tempo
 	              contador_trocas = 0;  // Reseta o contador de trocas
+	              */
+	          }
 
 	             // verifica continuamente `hallint` e atualiza `SetorAcionado`
 	              while (ok == 1) {
-	                  uint32_t inicio_troca = t_us;
+
+
+	            	  //Faz a leitura dos sensores Hall
+	            	  hall[0]= HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_1);
+	            	  hall[1]= HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10)*10;
+	            	  hall[2]= HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_11)*100;
+	            	  hallint=  hall[0]+hall[1]+hall[2];//Monta o código dos sensores Hall
+
+
+	                  //uint32_t inicio_troca = t_us;
 	                  switch (hallint) {
 	                      case 1:
-	                          SetorAcionado = 4;
-	                          checar_setores(4);
+	                    	  if(SetorAcionado!=4)//Se não for 4 então é primeira vez
+	                    	  {
+	                    		  tempo_t2=tempo_t1;
+								  tempo_t1 = t_ms;
+								  tempo_entre_setores = tempo_t1-tempo_t2;
+								  tempo_total_entre_setores =tempo_total_entre_setores+ tempo_entre_setores;
+	                    	  }
+	                    	  SetorAcionado = 4;
+	                          //checar_setores(4);
 	                          break;
 	                      case 10:
+	                    	  if(SetorAcionado!=6)//Se não for 4 então é primeira vez
+	                    	  {
+							  tempo_t2=tempo_t1;
+							  tempo_t1 = t_ms;
+							  tempo_entre_setores = tempo_t1-tempo_t2;
+							  tempo_total_entre_setores =tempo_total_entre_setores+ tempo_entre_setores;
+	                    	  }
 	                          SetorAcionado = 6;
-	                          checar_setores(6);
+	                          //checar_setores(6);
 	                          break;
 	                      case 11:
+	                    	  if(SetorAcionado!=5)//Se não for 4 então é primeira vez
+	                    	  {
+							  tempo_t2=tempo_t1;
+							  tempo_t1 = t_ms;
+							  tempo_entre_setores = tempo_t1-tempo_t2;
+							  tempo_total_entre_setores =tempo_total_entre_setores+ tempo_entre_setores;
+	                    	  }
 	                          SetorAcionado = 5;
-	                          checar_setores(5);
+	                          //checar_setores(5);
 	                          break;
 	                      case 100:
+	                    	  if(SetorAcionado!=2)//Se não for 4 então é primeira vez
+	                    	  {
+							  tempo_t2=tempo_t1;
+							  tempo_t1 = t_ms;
+							  tempo_entre_setores = tempo_t1-tempo_t2;
+							  tempo_total_entre_setores =tempo_total_entre_setores+ tempo_entre_setores;
+	                    	  }
 	                          SetorAcionado = 2;
-	                          checar_setores(2);
+	                          //checar_setores(2);
 	                          break;
 	                      case 101:
+	                    	  if(SetorAcionado!=3)//Se não for 4 então é primeira vez
+	                    	  {
+							  tempo_t2=tempo_t1;
+							  tempo_t1 = t_ms;
+							  tempo_entre_setores = tempo_t1-tempo_t2;
+							  tempo_total_entre_setores =tempo_total_entre_setores+ tempo_entre_setores;
+	                    	  }
 	                          SetorAcionado = 3;
-	                          checar_setores(3);
+	                          //checar_setores(3);
 	                          break;
 	                      case 110:
+	                    	  if(SetorAcionado!=1)//Se não for 4 então é primeira vez
+	                    	  {
+							  tempo_t2=tempo_t1;
+							  tempo_t1= t_ms;
+							  tempo_entre_setores = tempo_t2-tempo_t1;
+							  tempo_total_entre_setores =tempo_total_entre_setores+ tempo_entre_setores;
+
+							  //Calcula a media e printa na USB
+							  tempo_medio=tempo_total_entre_setores/6;
+		                      char mensagemVelocidade[64];
+		                      snprintf(mensagemVelocidade, sizeof(mensagemVelocidade), "O tempo medio %d ms\n\r", tempo_medio);
+		                      CDC_Transmit_FS(mensagemVelocidade,strlen(mensagemVelocidade));
+
+		                      //Zera tudo
+		    	              //reset_systick();
+		                      tempo_total_entre_setores=0;
+	                    	  }
 	                          SetorAcionado = 1;
-	                          checar_setores(1);
+	                          //checar_setores(1);
 	                          break;
 	                      default:
 	                          SetorAcionado = 0;
 	                          break;
 	                  }
-	                  tempo_entre_setores = t_us - inicio_troca;
-	                  soma_tempo_trocas += tempo_entre_setores;  // Adiciona ao tempo total
-	                  contador_trocas++;  // Incrementa o contador de trocas
+	                  //tempo_entre_setores = t_us - inicio_troca;
+	                  //soma_tempo_trocas += tempo_entre_setores;  // Adiciona ao tempo total
+	                  //contador_trocas++;  // Incrementa o contador de trocas
 
 	                  // Checa se todos os setores foram acionados (todos os bits de `setores_acionados` devem estar em 1)
-	                  if (setores_acionados == 0b111111) {
-
+	               /*   if (setores_acionados == 0b111111) {
 
 	                      // Calcula o tempo médio
-	                      float tempo_medio = (contador_trocas > 0) ? (soma_tempo_trocas / (float)contador_trocas) / 1000000.0f : 0.0f; // em segundos
-	                      char buffer[100];
-	                      snprintf(buffer, sizeof(buffer), "O tempo médio entre a troca de setores foi de %.6f segundos\n", tempo_medio);
-	                      HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+	                      tempo_medio = (float)(contador_trocas > 0) ? (soma_tempo_trocas / (float)contador_trocas) : 0.0f; // em segundos
+	                      //char buffer[100];
+	                      //char mensagem[32];
+	                      //sprintf(mensagem, sizeof(mensagem), "O tempo médio entre a troca de setores foi de %.6f segundos\n", tempo_medio);
+	                      //
+	                      //HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+	                      //CDC_Transmit_FS((uint8_t*)buffer, strlen(buffer));
+	                      //char mensagemA[]="teste\n";
+	                      //CDC_Transmit_FS(mensagemA,strlen(mensagemA));
 
-	                      break;
+	                      char mensagemVelocidade[64];
+	                      snprintf(mensagemVelocidade, sizeof(mensagemVelocidade), "O tempo medio %.6f segundos\n\r", tempo_medio);
+	                      CDC_Transmit_FS(mensagemVelocidade,strlen(mensagemVelocidade));
+	                      setores_acionados=0b000000;
+
+	    	              // Reseta o SysTick e t_us ao entrar no estado de espera
+	    	              reset_systick();
+	    	              setores_acionados = 0b000000;  // Reinicia controle de setores
+	    	              soma_tempo_trocas = 0;  // Reseta a soma do tempo
+	    	              contador_trocas = 0;  // Reseta o contador de trocas
 	                  }
 
 	                  //Codigo de acionamento do motor por setores
+*/
 
 	                  if(SetorAcionado == 0) //Setor 0 -> Desliga tudo
 	                  		{
@@ -317,10 +423,8 @@ int main(void)
 
 	              // Reseta o SysTick e t_us quando ok é alterado para 1
 	              reset_systick();
-	          }
-
-	      }
   }
+
   /* USER CODE END 3 */
 }
 
@@ -332,6 +436,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -358,6 +463,12 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
+  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
@@ -495,13 +606,14 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-// Função para resetar o SysTick e t_us
+// Função para resetar o SysTick e t_ms
 void reset_systick(void) {
-    t_us = 0;
+    t_ms = 0;
     SysTick->VAL = 0;  // Reseta o contador do SysTick para zero
 }
 
 // Função para marcar setor acionado e verificar setores
+/*
 void checar_setores(int setor) {
     switch (setor) {
         case 1:
@@ -526,12 +638,16 @@ void checar_setores(int setor) {
             break;
     }
 }
+*/
 
+
+/*
 // Manipulador da interrupção SysTick
 void SysTick_Handler(void) {
     HAL_IncTick();
     t_us++;  // Incrementa o tempo em microssegundos
 }
+
 static void MX_USART2_UART_Init(void) {
     // Configuração do UART2 a 115200 baud rate
     huart2.Instance = USART2;
@@ -546,7 +662,7 @@ static void MX_USART2_UART_Init(void) {
         // Inicialização do UART falhou
         Error_Handler();
     }
-}
+}*/
 /* USER CODE END 4 */
 
 /**
